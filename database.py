@@ -98,11 +98,10 @@ def get_global_leaderboard(mode="overall"):
     ]
 
     results = list(messages_col.aggregate(pipeline))
-
     return [(r["_id"], r["total"]) for r in results]
 
 # =========================
-# Top Groups
+# Top Groups (Global)
 # =========================
 
 def get_top_groups(mode="overall"):
@@ -132,7 +131,37 @@ def get_top_groups(mode="overall"):
     return [(r["_id"], r["total"]) for r in results]
 
 # =========================
-# User Stats
+# My Top Groups (User Personal)
+# =========================
+
+def get_user_groups_stats(user_id: int, mode="overall"):
+    today = datetime.date.today().isoformat()
+    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+
+    match_stage = {"user_id": user_id}
+
+    if mode == "today":
+        match_stage["date"] = today
+    elif mode == "week":
+        match_stage["date"] = {"$gte": week_ago}
+
+    pipeline = [
+        {"$match": match_stage},
+        {
+            "$group": {
+                "_id": "$group_id",
+                "total": {"$sum": "$count"}
+            }
+        },
+        {"$sort": {"total": -1}},
+        {"$limit": 10}
+    ]
+
+    results = list(messages_col.aggregate(pipeline))
+    return [(r["_id"], r["total"]) for r in results]
+
+# =========================
+# User Stats (Global)
 # =========================
 
 def get_user_overall_stats(user_id: int):
@@ -202,6 +231,7 @@ def get_user_week_stats(user_id: int):
 def get_global_user_count():
     return len(messages_col.distinct("user_id"))
 
+
 def get_user_global_rank(user_id: int):
     pipeline = [
         {
@@ -220,6 +250,7 @@ def get_user_global_rank(user_id: int):
             return index
 
     return None
+
 
 def get_total_global_messages():
     pipeline = [
