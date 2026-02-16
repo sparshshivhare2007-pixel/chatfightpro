@@ -9,7 +9,6 @@ async def topgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_top_groups(update, context, mode):
-    # FIX: get_top_groups only returns list
     data = get_top_groups(mode)
     total_messages = get_total_global_messages()
 
@@ -18,6 +17,8 @@ async def send_top_groups(update, context, mode):
     if not data:
         text += "No data yet."
     else:
+        medals = ["🥇", "🥈", "🥉"]
+
         for i, item in enumerate(data, start=1):
             group_id = item[0]
             count = item[1]
@@ -26,12 +27,15 @@ async def send_top_groups(update, context, mode):
                 chat = await context.bot.get_chat(group_id)
                 safe_name = html.escape(chat.title or "Group")
             except Exception:
-                safe_name = "Unknown Group"
+                # fallback: show group_id instead of Unknown
+                safe_name = f"Group {group_id}"
 
-            text += f"{i}. 👥 {safe_name} • {count:,}\n"
+            medal = medals[i - 1] if i <= 3 else f"{i}."
+            text += f"{medal} 👥 {safe_name} • {count:,}\n"
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
+    # ✅ GREEN TICK LOGIC
     keyboard = [
         [
             InlineKeyboardButton(
@@ -40,11 +44,14 @@ async def send_top_groups(update, context, mode):
             )
         ],
         [
-            InlineKeyboardButton("Today", callback_data="tg_today"),
-            InlineKeyboardButton("Week", callback_data="tg_week"),
-        ],
-        [
-            InlineKeyboardButton("🏳 Language", callback_data="language")
+            InlineKeyboardButton(
+                "Today ✅" if mode == "today" else "Today",
+                callback_data="tg_today"
+            ),
+            InlineKeyboardButton(
+                "Week ✅" if mode == "week" else "Week",
+                callback_data="tg_week"
+            ),
         ]
     ]
 
