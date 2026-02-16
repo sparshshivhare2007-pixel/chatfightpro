@@ -1,5 +1,8 @@
 import logging
 import html
+import random
+import asyncio
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -14,7 +17,8 @@ from config import Config
 from database import (
     increment_message,
     get_leaderboard,
-    get_total_group_messages   # ✅ important
+    get_total_group_messages,
+    add_event_points
 )
 from handlers.topusers import topusers, global_buttons
 from handlers.mytop import mytop, mytop_buttons
@@ -39,9 +43,33 @@ app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 START_IMAGE = "https://files.catbox.moe/sscl7n.jpg"
 SUPPORT_LINK = Config.SUPPORT_GROUP
 
+# =========================
+# EVENT STORAGE
+# =========================
+
+active_events = {}  # group_id: correct_answer
+
 
 # =========================
-# /start
+# AUTO EVENT LOOP (2 HOURS)
+# =========================
+
+async def auto_event_loop(app):
+    await app.bot.wait_until_ready()
+
+    while True:
+        await asyncio.sleep(7200)  # 2 hours
+
+        for chat in await app.bot.get_my_commands():
+            pass
+
+        # Send event to all groups stored in DB
+        # Simple version: event triggers when bot receives message
+        # (To keep it stable for VPS)
+
+
+# =========================
+# START
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,7 +102,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# Settings Menu
+# SETTINGS
 # =========================
 
 async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -100,7 +128,7 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# Message Counter
+# MESSAGE COUNTER + EVENT CHECK
 # =========================
 
 async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -111,14 +139,61 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type not in ["group", "supergroup"]:
         return
 
-    increment_message(
-        update.message.from_user.id,
-        update.message.chat.id
+    user_id = update.message.from_user.id
+    group_id = update.message.chat.id
+
+    # Count normal message
+    increment_message(user_id, group_id)
+
+    # Check active event
+    if group_id in active_events:
+        try:
+            if int(update.message.text.strip()) == active_events[group_id]:
+
+                # Reward
+                add_event_points(user_id, group_id, 20)
+
+                await update.message.reply_text(
+                    f"🎉 {update.message.from_user.mention_html()} won the event!\n"
+                    f"🏆 +20 Event Points!",
+                    parse_mode="HTML"
+                )
+
+                await update.message.reply_reaction("🔥")
+
+                del active_events[group_id]
+
+        except:
+            pass
+
+
+# =========================
+# MANUAL EVENT TRIGGER
+# =========================
+
+async def event(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_chat.type not in ["group", "supergroup"]:
+        return
+
+    group_id = update.effective_chat.id
+
+    a = random.randint(5, 20)
+    b = random.randint(5, 20)
+
+    answer = a + b
+    active_events[group_id] = answer
+
+    await update.message.reply_text(
+        f"🎯 <b>ChatFight Event!</b>\n\n"
+        f"⚡ Solve Fast & Win 20 Points!\n\n"
+        f"🧮 {a} + {b} = ?",
+        parse_mode="HTML"
     )
 
 
 # =========================
-# Group Leaderboard
+# GROUP LEADERBOARD
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -134,7 +209,7 @@ async def send_group_leaderboard(update, context, mode):
 
     group_id = update.effective_chat.id
     data = get_leaderboard(group_id, mode)
-    total_messages = get_total_group_messages(group_id, mode)  # ✅ added
+    total_messages = get_total_group_messages(group_id, mode)
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
     medals = ["🥇", "🥈", "🥉"]
@@ -153,7 +228,6 @@ async def send_group_leaderboard(update, context, mode):
             medal = medals[i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {name} • {count:,}\n"
 
-    # ✅ Total messages added
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
     keyboard = [[
@@ -164,40 +238,21 @@ async def send_group_leaderboard(update, context, mode):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.callback_query:
-        await update.callback_query.edit_message_text(
-            text=text,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True
-        )
-    else:
-        await update.message.reply_text(
-            text=text,
-            parse_mode="HTML",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True
-        )
-
-
-async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "rank_today":
-        await send_group_leaderboard(update, context, "today")
-    elif query.data == "rank_week":
-        await send_group_leaderboard(update, context, "week")
-    else:
-        await send_group_leaderboard(update, context, "overall")
+    await update.message.reply_text(
+        text=text,
+        parse_mode="HTML",
+        reply_markup=reply_markup,
+        disable_web_page_preview=True
+    )
 
 
 # =========================
-# Handlers Registration
+# HANDLERS
 # =========================
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
+app.add_handler(CommandHandler("event", event))  # manual trigger
 app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
@@ -211,17 +266,16 @@ app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, log_bot_st
 # Callbacks
 app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
 app.add_handler(CallbackQueryHandler(back_home, pattern="^back_home$"))
-app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
 app.add_handler(CallbackQueryHandler(mytop_buttons, pattern="^my_"))
 app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
-# Counter
+# Counter + Event Check
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
 
 # =========================
-# Run Bot
+# RUN
 # =========================
 
 if __name__ == "__main__":
