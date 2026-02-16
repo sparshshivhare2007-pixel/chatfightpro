@@ -24,6 +24,20 @@ messages_col.create_index("group_id")
 messages_col.create_index("date")
 
 # =========================
+# Helper: Date Filters
+# =========================
+
+def _build_date_filter(mode):
+    today = datetime.date.today().isoformat()
+    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+
+    if mode == "today":
+        return {"date": today}
+    elif mode == "week":
+        return {"date": {"$gte": week_ago}}
+    return {}
+
+# =========================
 # Increment Message
 # =========================
 
@@ -45,15 +59,8 @@ def increment_message(user_id: int, group_id: int):
 # =========================
 
 def get_leaderboard(group_id: int, mode="overall"):
-    today = datetime.date.today().isoformat()
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-
     match_stage = {"group_id": group_id}
-
-    if mode == "today":
-        match_stage["date"] = today
-    elif mode == "week":
-        match_stage["date"] = {"$gte": week_ago}
+    match_stage.update(_build_date_filter(mode))
 
     pipeline = [
         {"$match": match_stage},
@@ -75,15 +82,7 @@ def get_leaderboard(group_id: int, mode="overall"):
 # =========================
 
 def get_global_leaderboard(mode="overall"):
-    today = datetime.date.today().isoformat()
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-
-    match_stage = {}
-
-    if mode == "today":
-        match_stage["date"] = today
-    elif mode == "week":
-        match_stage["date"] = {"$gte": week_ago}
+    match_stage = _build_date_filter(mode)
 
     pipeline = [
         {"$match": match_stage},
@@ -105,15 +104,7 @@ def get_global_leaderboard(mode="overall"):
 # =========================
 
 def get_top_groups(mode="overall"):
-    today = datetime.date.today().isoformat()
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-
-    match_stage = {}
-
-    if mode == "today":
-        match_stage["date"] = today
-    elif mode == "week":
-        match_stage["date"] = {"$gte": week_ago}
+    match_stage = _build_date_filter(mode)
 
     pipeline = [
         {"$match": match_stage},
@@ -135,15 +126,8 @@ def get_top_groups(mode="overall"):
 # =========================
 
 def get_user_groups_stats(user_id: int, mode="overall"):
-    today = datetime.date.today().isoformat()
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-
     match_stage = {"user_id": user_id}
-
-    if mode == "today":
-        match_stage["date"] = today
-    elif mode == "week":
-        match_stage["date"] = {"$gte": week_ago}
+    match_stage.update(_build_date_filter(mode))
 
     pipeline = [
         {"$match": match_stage},
