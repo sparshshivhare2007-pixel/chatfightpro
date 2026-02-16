@@ -17,7 +17,7 @@ from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
 from handlers.broadcast import broadcast
 from handlers.logger import log_start, log_bot_status
-from handlers.antispam import check_spam, is_blocked
+
 
 # =========================
 # Basic Setup
