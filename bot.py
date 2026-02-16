@@ -12,7 +12,8 @@ from telegram.ext import (
 
 from config import Config
 from database import increment_message, get_leaderboard
-from handlers.topusers import topusers, global_buttons  # ← Global leaderboard handler
+from handlers.topusers import topusers, global_buttons
+from handlers.topgroups import topgroups, topgroups_buttons
 
 # =========================
 # Basic Setup
@@ -26,14 +27,12 @@ logging.basicConfig(
 Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
-
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
-# Banner Image
 START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
 
 # =========================
-# /start Command
+# /start
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -91,7 +90,7 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # =========================
-# Group Rankings
+# Group Leaderboard
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -99,9 +98,9 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Use this command inside a group.")
         return
 
-    await send_leaderboard(update, context, "overall")
+    await send_group_leaderboard(update, context, "overall")
 
-async def send_leaderboard(update, context, mode):
+async def send_group_leaderboard(update, context, mode):
     group_id = update.effective_chat.id
     data = get_leaderboard(group_id, mode)
 
@@ -121,7 +120,6 @@ async def send_leaderboard(update, context, mode):
                     name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
                 else:
                     name = safe_name
-
             except:
                 name = "Unknown"
 
@@ -141,16 +139,14 @@ async def send_leaderboard(update, context, mode):
     if update.callback_query:
         await update.callback_query.edit_message_text(
             text,
-            reply_markup=reply_markup,
             parse_mode="HTML",
-            disable_web_page_preview=True
+            reply_markup=reply_markup
         )
     else:
         await update.message.reply_text(
             text,
-            reply_markup=reply_markup,
             parse_mode="HTML",
-            disable_web_page_preview=True
+            reply_markup=reply_markup
         )
 
 async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -158,11 +154,11 @@ async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "rank_today":
-        await send_leaderboard(update, context, "today")
+        await send_group_leaderboard(update, context, "today")
     elif query.data == "rank_week":
-        await send_leaderboard(update, context, "week")
+        await send_group_leaderboard(update, context, "week")
     else:
-        await send_leaderboard(update, context, "overall")
+        await send_group_leaderboard(update, context, "overall")
 
 # =========================
 # Handlers Registration
@@ -171,9 +167,11 @@ async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
 app.add_handler(CommandHandler("topusers", topusers))
+app.add_handler(CommandHandler("topgroups", topgroups))
 
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
+app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
