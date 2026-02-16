@@ -26,14 +26,14 @@ Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 
-# Optional: updates channel from .env
+# Optional updates channel
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
-# 👉 Yaha apna banner image file_id daalo (recommended)
-START_IMAGE = "YOUR_TELEGRAM_FILE_ID"
+# Your Banner Image
+START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
 
 # =========================
-# /start Command (DM Style)
+# /start Command
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -64,12 +64,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "through the <b>Privacy Policy</b> and compliance with the <b>Rules</b>."
     )
 
-    await update.message.reply_photo(
-        photo=START_IMAGE,
-        caption=text,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await update.message.reply_photo(
+            photo=START_IMAGE,
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception:
+        # fallback if image fails
+        await update.message.reply_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            disable_web_page_preview=True
+        )
 
 # =========================
 # Message Counter
