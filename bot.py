@@ -11,7 +11,11 @@ from telegram.ext import (
 )
 
 from config import Config
-from database import increment_message, get_leaderboard
+from database import (
+    increment_message,
+    get_leaderboard,
+    get_total_group_messages   # ✅ important
+)
 from handlers.topusers import topusers, global_buttons
 from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
@@ -31,7 +35,6 @@ logging.basicConfig(
 Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
-app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
 START_IMAGE = "https://files.catbox.moe/sscl7n.jpg"
 SUPPORT_LINK = Config.SUPPORT_GROUP
@@ -59,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "🤖 <b>Welcome!</b>\n\n"
         "This bot counts group messages, creates rankings "
-        "and gives rewards to active users."
+        "and rewards active users."
     )
 
     await update.message.reply_photo(
@@ -90,38 +93,10 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# =========================
-# Back Button
-# =========================
-
 async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "➕ Add me in a group",
-                url=f"https://t.me/{context.bot.username}?startgroup=true"
-            )
-        ],
-        [
-            InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
-            InlineKeyboardButton("📊 Your stats", callback_data="stats")
-        ]
-    ]
-
-    text = (
-        "🤖 <b>Welcome!</b>\n\n"
-        "This bot counts group messages, creates rankings "
-        "and gives rewards to active users."
-    )
-
-    await query.edit_message_caption(
-        caption=text,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    await start(update, context)
 
 
 # =========================
@@ -159,20 +134,27 @@ async def send_group_leaderboard(update, context, mode):
 
     group_id = update.effective_chat.id
     data = get_leaderboard(group_id, mode)
+    total_messages = get_total_group_messages(group_id, mode)  # ✅ added
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
-    for i, (user_id, count) in enumerate(data, start=1):
-        try:
-            user = await context.bot.get_chat(user_id)
-            safe_name = html.escape(user.full_name or "User")
-            name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
-        except:
-            name = "Unknown"
+    if not data:
+        text += "No data yet.\n"
+    else:
+        for i, (user_id, count) in enumerate(data, start=1):
+            try:
+                user = await context.bot.get_chat(user_id)
+                safe_name = html.escape(user.full_name or "User")
+                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+            except:
+                name = "Unknown"
 
-        medal = medals[i - 1] if i <= 3 else f"{i}."
-        text += f"{medal} {name} • {count:,}\n"
+            medal = medals[i - 1] if i <= 3 else f"{i}."
+            text += f"{medal} {name} • {count:,}\n"
+
+    # ✅ Total messages added
+    text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
     keyboard = [[
         InlineKeyboardButton("Overall", callback_data="rank_overall"),
