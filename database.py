@@ -8,10 +8,13 @@ import datetime
 
 client = MongoClient(Config.MONGO_URI)
 db = client["chatfight"]
+
 messages_col = db["messages"]
+events_col = db["events"]  # ✅ NEW COLLECTION
+
 
 # =========================
-# Indexes (Performance Boost)
+# Indexes
 # =========================
 
 messages_col.create_index(
@@ -23,8 +26,14 @@ messages_col.create_index("user_id")
 messages_col.create_index("group_id")
 messages_col.create_index("date")
 
+events_col.create_index(
+    [("user_id", ASCENDING), ("group_id", ASCENDING)],
+    unique=True
+)
+
+
 # =========================
-# Helper: Date Filter Builder
+# Date Filter Builder
 # =========================
 
 def _build_date_filter(mode):
@@ -37,8 +46,9 @@ def _build_date_filter(mode):
         return {"date": {"$gte": week_ago}}
     return {}
 
+
 # =========================
-# Increment Message
+# Increment Normal Message
 # =========================
 
 def increment_message(user_id: int, group_id: int):
@@ -53,6 +63,59 @@ def increment_message(user_id: int, group_id: int):
         {"$inc": {"count": 1}},
         upsert=True
     )
+
+
+# =========================
+# Add Event Points
+# =========================
+
+def add_event_points(user_id: int, group_id: int, points: int):
+    events_col.update_one(
+        {
+            "user_id": user_id,
+            "group_id": group_id
+        },
+        {"$inc": {"points": points}},
+        upsert=True
+    )
+
+
+# =========================
+# Event Leaderboard (Group)
+# =========================
+
+def get_event_leaderboard(group_id: int):
+    pipeline = [
+        {"$match": {"group_id": group_id}},
+        {
+            "$group": {
+                "_id": "$user_id",
+                "total": {"$sum": "$points"}
+            }
+        },
+        {"$sort": {"total": -1}},
+        {"$limit": 10}
+    ]
+
+    results = list(events_col.aggregate(pipeline))
+    return [(r["_id"], r["total"]) for r in results]
+
+
+# =========================
+# Get User Event Points
+# =========================
+
+def get_user_event_points(user_id: int, group_id: int):
+    result = events_col.find_one({
+        "user_id": user_id,
+        "group_id": group_id
+    })
+
+    if not result:
+        return 0
+
+    return result.get("points", 0)
+
 
 # =========================
 # Group Leaderboard
@@ -77,6 +140,7 @@ def get_leaderboard(group_id: int, mode="overall"):
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
 
+
 # =========================
 # Global Leaderboard
 # =========================
@@ -99,8 +163,9 @@ def get_global_leaderboard(mode="overall"):
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
 
+
 # =========================
-# Top Groups (Global)
+# Top Groups
 # =========================
 
 def get_top_groups(mode="overall"):
@@ -121,89 +186,6 @@ def get_top_groups(mode="overall"):
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
 
-# =========================
-# My Top Groups (Personal)
-# =========================
-
-def get_user_groups_stats(user_id: int, mode="overall"):
-    match_stage = {"user_id": user_id}
-    match_stage.update(_build_date_filter(mode))
-
-    pipeline = [
-        {"$match": match_stage},
-        {
-            "$group": {
-                "_id": "$group_id",
-                "total": {"$sum": "$count"}
-            }
-        },
-        {"$sort": {"total": -1}},
-        {"$limit": 10}
-    ]
-
-    results = list(messages_col.aggregate(pipeline))
-    return [(r["_id"], r["total"]) for r in results]
-
-# =========================
-# User Stats (Global)
-# =========================
-
-def get_user_overall_stats(user_id: int):
-    pipeline = [
-        {"$match": {"user_id": user_id}},
-        {
-            "$group": {
-                "_id": None,
-                "messages": {"$sum": "$count"},
-                "groups": {"$addToSet": "$group_id"}
-            }
-        }
-    ]
-
-    result = list(messages_col.aggregate(pipeline))
-    if not result:
-        return 0, 0
-
-    return result[0]["messages"], len(result[0]["groups"])
-
-# =========================
-# Global Stats
-# =========================
-
-def get_global_user_count():
-    return len(messages_col.distinct("user_id"))
-
-def get_user_global_rank(user_id: int):
-    pipeline = [
-        {
-            "$group": {
-                "_id": "$user_id",
-                "total": {"$sum": "$count"}
-            }
-        },
-        {"$sort": {"total": -1}}
-    ]
-
-    results = list(messages_col.aggregate(pipeline))
-
-    for index, user in enumerate(results, start=1):
-        if user["_id"] == user_id:
-            return index
-
-    return None
-
-def get_total_global_messages():
-    pipeline = [
-        {
-            "$group": {
-                "_id": None,
-                "total": {"$sum": "$count"}
-            }
-        }
-    ]
-
-    result = list(messages_col.aggregate(pipeline))
-    return result[0]["total"] if result else 0
 
 # =========================
 # Total Group Messages
@@ -215,6 +197,28 @@ def get_total_group_messages(group_id: int, mode="overall"):
 
     pipeline = [
         {"$match": match_stage},
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$count"}
+            }
+        }
+    ]
+
+    result = list(messages_col.aggregate(pipeline))
+    return result[0]["total"] if result else 0
+
+
+# =========================
+# Global Stats
+# =========================
+
+def get_global_user_count():
+    return len(messages_col.distinct("user_id"))
+
+
+def get_total_global_messages():
+    pipeline = [
         {
             "$group": {
                 "_id": None,
