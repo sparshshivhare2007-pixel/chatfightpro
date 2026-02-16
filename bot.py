@@ -96,16 +96,23 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅ Back", callback_data="back_home")]
     ]
 
-    await query.edit_message_caption(
-        caption="⚙️ <b>Settings</b>\n\nNeed help? Join our support group.",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    text = "⚙️ <b>Settings</b>\n\nNeed help? Join our support group."
 
-async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await start(update, context)
+    try:
+        # If original message was photo
+        await query.edit_message_caption(
+            caption=text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except:
+        # If original message was text
+        await query.edit_message_text(
+            text=text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            disable_web_page_preview=True
+        )
 
 # =========================
 # Anti-Spam Protected Message Counter
