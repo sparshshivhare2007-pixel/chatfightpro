@@ -1,14 +1,6 @@
 import logging
 import html
 import random
-import asyncio
-
-# ✅ Optional uvloop (auto fast loop if installed)
-try:
-    import uvloop
-    uvloop.install()
-except ImportError:
-    pass
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
