@@ -15,6 +15,8 @@ from database import increment_message, get_leaderboard
 from handlers.topusers import topusers, global_buttons
 from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
+from handlers.broadcast import broadcast
+from handlers.logger import log_start, log_bot_status
 
 # =========================
 # Basic Setup
@@ -31,7 +33,7 @@ app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
 START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
-SUPPORT_LINK = "https://t.me/Newchatfightsupport"
+SUPPORT_LINK = Config.SUPPORT_GROUP
 
 # =========================
 # /start
@@ -81,7 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # =========================
-# Settings Menu
+# Settings
 # =========================
 
 async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -89,12 +91,8 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     keyboard = [
-        [
-            InlineKeyboardButton("💬 Support", url=SUPPORT_LINK)
-        ],
-        [
-            InlineKeyboardButton("⬅ Back", callback_data="back_home")
-        ]
+        [InlineKeyboardButton("💬 Support", url=SUPPORT_LINK)],
+        [InlineKeyboardButton("⬅ Back", callback_data="back_home")]
     ]
 
     await query.edit_message_caption(
@@ -102,10 +100,6 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
-# =========================
-# Back Button
-# =========================
 
 async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -140,23 +134,18 @@ async def send_group_leaderboard(update, context, mode):
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
 
-    if not data:
-        text += "No data yet."
-    else:
-        medals = ["🥇", "🥈", "🥉"]
+    medals = ["🥇", "🥈", "🥉"]
 
-        for i, (user_id, count) in enumerate(data, start=1):
-            try:
-                user = await context.bot.get_chat(user_id)
-                safe_name = html.escape(user.full_name or "User")
+    for i, (user_id, count) in enumerate(data, start=1):
+        try:
+            user = await context.bot.get_chat(user_id)
+            safe_name = html.escape(user.full_name or "User")
+            name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+        except:
+            name = "Unknown"
 
-                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
-
-            except:
-                name = "Unknown"
-
-            medal = medals[i - 1] if i <= 3 else f"{i}."
-            text += f"{medal} {name} • {count:,}\n"
+        medal = medals[i - 1] if i <= 3 else f"{i}."
+        text += f"{medal} {name} • {count:,}\n"
 
     keyboard = [
         [
@@ -203,19 +192,26 @@ app.add_handler(CommandHandler("rankings", rankings))
 app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
+app.add_handler(CommandHandler("broadcast", broadcast))
 
+# Logger
+app.add_handler(CommandHandler("start", log_start), group=1)
+app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, log_bot_status))
+app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, log_bot_status))
+
+# Callbacks
 app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
 app.add_handler(CallbackQueryHandler(back_home, pattern="^back_home$"))
-
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
 app.add_handler(CallbackQueryHandler(mytop_buttons, pattern="^my_"))
 app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
+# Counter
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
 # =========================
-# Run Bot
+# Run
 # =========================
 
 if __name__ == "__main__":
