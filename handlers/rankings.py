@@ -23,25 +23,20 @@ async def send_leaderboard(update, context, mode):
     else:
         medals = ["🥇", "🥈", "🥉"]
 
-        for i, item in enumerate(data, start=1):
-            user_id = item[0]
-            count = item[1]
-
+        for i, (user_id, count) in enumerate(data, start=1):
             try:
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
 
-                if user.username:
-                    name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
-                else:
-                    name = safe_name
+                # ✅ Clickable without preview
+                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+
             except Exception:
                 name = "Unknown"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {name} • {count:,}\n"
 
-    # ✅ GREEN TICK LOGIC
     keyboard = [
         [
             InlineKeyboardButton(
@@ -65,13 +60,15 @@ async def send_leaderboard(update, context, mode):
         await update.callback_query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
     else:
         await update.message.reply_text(
             text,
             reply_markup=reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
 
 
