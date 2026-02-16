@@ -36,12 +36,12 @@ app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
 SUPPORT_LINK = Config.SUPPORT_GROUP
 
+
 # =========================
 # /start
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    updates_channel = context.bot_data.get("updates_channel")
 
     keyboard = [
         [
@@ -56,35 +56,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    if updates_channel:
-        keyboard.append(
-            [InlineKeyboardButton("📢 Updates", url=updates_channel)]
-        )
-
     text = (
-        "🤖 <b>Welcome, this bot will count group messages, "
-        "create rankings and give prizes to users!</b>\n\n"
-        "📚 By using this bot, you consent to the processing of your data "
-        "through the <b>Privacy Policy</b> and compliance with the <b>Rules</b>."
+        "🤖 <b>Welcome!</b>\n\n"
+        "This bot counts group messages, creates rankings "
+        "and gives rewards to active users."
     )
 
-    try:
-        await update.message.reply_photo(
-            photo=START_IMAGE,
-            caption=text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    except Exception:
-        await update.message.reply_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            disable_web_page_preview=True
-        )
+    await update.message.reply_photo(
+        photo=START_IMAGE,
+        caption=text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 
 # =========================
-# Settings
+# Settings Menu
 # =========================
 
 async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,29 +83,53 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅ Back", callback_data="back_home")]
     ]
 
-    text = "⚙️ <b>Settings</b>\n\nNeed help? Join our support group."
+    await query.edit_message_caption(
+        caption="⚙️ <b>Settings</b>\n\nNeed help? Join our support group.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
-    try:
-        # If original message was photo
-        await query.edit_message_caption(
-            caption=text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    except:
-        # If original message was text
-        await query.edit_message_text(
-            text=text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            disable_web_page_preview=True
-        )
 
 # =========================
-# Anti-Spam Protected Message Counter
+# Back Button
+# =========================
+
+async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "➕ Add me in a group",
+                url=f"https://t.me/{context.bot.username}?startgroup=true"
+            )
+        ],
+        [
+            InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+            InlineKeyboardButton("📊 Your stats", callback_data="stats")
+        ]
+    ]
+
+    text = (
+        "🤖 <b>Welcome!</b>\n\n"
+        "This bot counts group messages, creates rankings "
+        "and gives rewards to active users."
+    )
+
+    await query.edit_message_caption(
+        caption=text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# =========================
+# Anti-Spam + Counter
 # =========================
 
 async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not update.message:
         return
 
@@ -127,19 +138,17 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.message.from_user.id
 
-    # If blocked → ignore
     if is_blocked(user_id):
         return
 
-    # Check spam
     if check_spam(user_id):
         await update.message.reply_text(
-            "🚫 You are temporarily blocked from ChatFight for 10 minutes (spam detected)."
+            "🚫 You are blocked for 10 minutes (spam detected)."
         )
         return
 
-    # Count message
     increment_message(user_id, update.message.chat.id)
+
 
 # =========================
 # Group Leaderboard
@@ -157,7 +166,9 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await send_group_leaderboard(update, context, "overall")
 
+
 async def send_group_leaderboard(update, context, mode):
+
     group_id = update.effective_chat.id
     data = get_leaderboard(group_id, mode)
 
@@ -185,18 +196,19 @@ async def send_group_leaderboard(update, context, mode):
 
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            text,
+            text=text,
             parse_mode="HTML",
             reply_markup=reply_markup,
             disable_web_page_preview=True
         )
     else:
         await update.message.reply_text(
-            text,
+            text=text,
             parse_mode="HTML",
             reply_markup=reply_markup,
             disable_web_page_preview=True
         )
+
 
 async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -208,6 +220,7 @@ async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_group_leaderboard(update, context, "week")
     else:
         await send_group_leaderboard(update, context, "overall")
+
 
 # =========================
 # Handlers Registration
@@ -236,8 +249,9 @@ app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 # Counter
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
+
 # =========================
-# Run
+# Run Bot
 # =========================
 
 if __name__ == "__main__":
