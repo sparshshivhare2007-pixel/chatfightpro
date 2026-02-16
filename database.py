@@ -10,7 +10,7 @@ client = MongoClient(Config.MONGO_URI)
 db = client["chatfight"]
 
 messages_col = db["messages"]
-events_col = db["events"]  # ✅ NEW COLLECTION
+events_col = db["events"]
 
 
 # =========================
@@ -66,7 +66,9 @@ def increment_message(user_id: int, group_id: int):
 
 
 # =========================
-# Add Event Points
+# =========================
+# EVENT SYSTEM
+# =========================
 # =========================
 
 def add_event_points(user_id: int, group_id: int, points: int):
@@ -79,10 +81,6 @@ def add_event_points(user_id: int, group_id: int, points: int):
         upsert=True
     )
 
-
-# =========================
-# Event Leaderboard (Group)
-# =========================
 
 def get_event_leaderboard(group_id: int):
     pipeline = [
@@ -101,10 +99,6 @@ def get_event_leaderboard(group_id: int):
     return [(r["_id"], r["total"]) for r in results]
 
 
-# =========================
-# Get User Event Points
-# =========================
-
 def get_user_event_points(user_id: int, group_id: int):
     result = events_col.find_one({
         "user_id": user_id,
@@ -118,7 +112,7 @@ def get_user_event_points(user_id: int, group_id: int):
 
 
 # =========================
-# Group Leaderboard
+# GROUP LEADERBOARD
 # =========================
 
 def get_leaderboard(group_id: int, mode="overall"):
@@ -142,7 +136,31 @@ def get_leaderboard(group_id: int, mode="overall"):
 
 
 # =========================
-# Global Leaderboard
+# MY TOP GROUPS (IMPORTANT FIX)
+# =========================
+
+def get_user_groups_stats(user_id: int, mode="overall"):
+    match_stage = {"user_id": user_id}
+    match_stage.update(_build_date_filter(mode))
+
+    pipeline = [
+        {"$match": match_stage},
+        {
+            "$group": {
+                "_id": "$group_id",
+                "total": {"$sum": "$count"}
+            }
+        },
+        {"$sort": {"total": -1}},
+        {"$limit": 10}
+    ]
+
+    results = list(messages_col.aggregate(pipeline))
+    return [(r["_id"], r["total"]) for r in results]
+
+
+# =========================
+# GLOBAL LEADERBOARD
 # =========================
 
 def get_global_leaderboard(mode="overall"):
@@ -165,7 +183,7 @@ def get_global_leaderboard(mode="overall"):
 
 
 # =========================
-# Top Groups
+# TOP GROUPS
 # =========================
 
 def get_top_groups(mode="overall"):
@@ -188,7 +206,7 @@ def get_top_groups(mode="overall"):
 
 
 # =========================
-# Total Group Messages
+# TOTAL GROUP MESSAGES
 # =========================
 
 def get_total_group_messages(group_id: int, mode="overall"):
@@ -210,7 +228,7 @@ def get_total_group_messages(group_id: int, mode="overall"):
 
 
 # =========================
-# Global Stats
+# GLOBAL STATS
 # =========================
 
 def get_global_user_count():
