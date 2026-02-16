@@ -1,5 +1,5 @@
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -25,30 +25,51 @@ Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 
+# =========================
+# /start Command
+# =========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "➕ Add me in a group",
+                url=f"https://t.me/{context.bot.username}?startgroup=true"
+            )
+        ],
+        [
+            InlineKeyboardButton("📈 Rankings", callback_data="rank_overall")
+        ]
+    ]
+
+    await update.message.reply_text(
+        "🤖 Welcome to ChatFight Bot!\n\n"
+        "I count group messages and create leaderboards.\n"
+        "Use /rankings inside a group.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # =========================
 # Message Counter
 # =========================
 
-async def count_messages(update, context: ContextTypes.DEFAULT_TYPE):
+async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.chat.type in ["group", "supergroup"]:
         increment_message(
             update.message.from_user.id,
             update.message.chat.id
         )
 
-
 # =========================
 # Rankings Command
 # =========================
 
-async def rankings(update, context: ContextTypes.DEFAULT_TYPE):
+async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("Use this command inside a group.")
         return
 
     await send_leaderboard(update, context, "overall")
-
 
 # =========================
 # Leaderboard Sender
@@ -104,12 +125,11 @@ async def send_leaderboard(update, context, mode):
             parse_mode="HTML"
         )
 
-
 # =========================
 # Button Handler
 # =========================
 
-async def ranking_buttons(update, context: ContextTypes.DEFAULT_TYPE):
+async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
@@ -120,15 +140,14 @@ async def ranking_buttons(update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await send_leaderboard(update, context, "overall")
 
-
 # =========================
 # Handlers Registration
 # =========================
 
+app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
-
 
 # =========================
 # Run Bot
