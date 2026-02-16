@@ -24,7 +24,7 @@ messages_col.create_index("group_id")
 messages_col.create_index("date")
 
 # =========================
-# Helper: Date Filters
+# Helper: Date Filter Builder
 # =========================
 
 def _build_date_filter(mode):
@@ -122,7 +122,7 @@ def get_top_groups(mode="overall"):
     return [(r["_id"], r["total"]) for r in results]
 
 # =========================
-# My Top Groups (User Personal)
+# My Top Groups (Personal)
 # =========================
 
 def get_user_groups_stats(user_id: int, mode="overall"):
@@ -166,55 +166,12 @@ def get_user_overall_stats(user_id: int):
 
     return result[0]["messages"], len(result[0]["groups"])
 
-
-def get_user_today_stats(user_id: int):
-    today = datetime.date.today().isoformat()
-
-    pipeline = [
-        {"$match": {"user_id": user_id, "date": today}},
-        {
-            "$group": {
-                "_id": None,
-                "messages": {"$sum": "$count"},
-                "groups": {"$addToSet": "$group_id"}
-            }
-        }
-    ]
-
-    result = list(messages_col.aggregate(pipeline))
-    if not result:
-        return 0, 0
-
-    return result[0]["messages"], len(result[0]["groups"])
-
-
-def get_user_week_stats(user_id: int):
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-
-    pipeline = [
-        {"$match": {"user_id": user_id, "date": {"$gte": week_ago}}},
-        {
-            "$group": {
-                "_id": None,
-                "messages": {"$sum": "$count"},
-                "groups": {"$addToSet": "$group_id"}
-            }
-        }
-    ]
-
-    result = list(messages_col.aggregate(pipeline))
-    if not result:
-        return 0, 0
-
-    return result[0]["messages"], len(result[0]["groups"])
-
 # =========================
 # Global Stats
 # =========================
 
 def get_global_user_count():
     return len(messages_col.distinct("user_id"))
-
 
 def get_user_global_rank(user_id: int):
     pipeline = [
@@ -235,9 +192,29 @@ def get_user_global_rank(user_id: int):
 
     return None
 
-
 def get_total_global_messages():
     pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$count"}
+            }
+        }
+    ]
+
+    result = list(messages_col.aggregate(pipeline))
+    return result[0]["total"] if result else 0
+
+# =========================
+# Total Group Messages
+# =========================
+
+def get_total_group_messages(group_id: int, mode="overall"):
+    match_stage = {"group_id": group_id}
+    match_stage.update(_build_date_filter(mode))
+
+    pipeline = [
+        {"$match": match_stage},
         {
             "$group": {
                 "_id": None,
