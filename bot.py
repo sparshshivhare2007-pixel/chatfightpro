@@ -26,11 +26,19 @@ Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 
+# Optional: updates channel from .env
+app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
+
+# 👉 Yaha apna banner image file_id daalo (recommended)
+START_IMAGE = "YOUR_TELEGRAM_FILE_ID"
+
 # =========================
-# /start Command
+# /start Command (DM Style)
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    updates_channel = context.bot_data.get("updates_channel")
+
     keyboard = [
         [
             InlineKeyboardButton(
@@ -39,17 +47,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ],
         [
-            InlineKeyboardButton("📈 Rankings", callback_data="rank_overall")
+            InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+            InlineKeyboardButton("📊 Your stats", callback_data="stats")
         ]
     ]
 
-    await update.message.reply_text(
-        "🤖 <b>Welcome to ChatFight Bot!</b>\n\n"
-        "I count group messages and create leaderboards.\n"
-        "Use /rankings inside a group.",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+    if updates_channel:
+        keyboard.append(
+            [InlineKeyboardButton("📢 Updates", url=updates_channel)]
+        )
+
+    text = (
+        "🤖 <b>Welcome, this bot will count group messages, "
+        "create rankings and give prizes to users!</b>\n\n"
+        "📚 By using this bot, you consent to the processing of your data "
+        "through the <b>Privacy Policy</b> and compliance with the <b>Rules</b>."
+    )
+
+    await update.message.reply_photo(
+        photo=START_IMAGE,
+        caption=text,
         parse_mode="HTML",
-        disable_web_page_preview=True
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # =========================
