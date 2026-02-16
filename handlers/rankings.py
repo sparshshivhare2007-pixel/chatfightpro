@@ -28,7 +28,7 @@ async def send_leaderboard(update, context, mode):
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
 
-                # ✅ Clickable without preview
+                # ✅ Clickable WITHOUT preview
                 name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
 
             except Exception:
@@ -37,6 +37,7 @@ async def send_leaderboard(update, context, mode):
             medal = medals[i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {name} • {count:,}\n"
 
+    # ✅ Green Tick Logic
     keyboard = [
         [
             InlineKeyboardButton(
@@ -56,16 +57,17 @@ async def send_leaderboard(update, context, mode):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Always disable preview
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            text,
+            text=text,
             reply_markup=reply_markup,
             parse_mode="HTML",
             disable_web_page_preview=True
         )
     else:
         await update.message.reply_text(
-            text,
+            text=text,
             reply_markup=reply_markup,
             parse_mode="HTML",
             disable_web_page_preview=True
