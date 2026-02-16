@@ -33,7 +33,7 @@ Config.validate()
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
-START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
+START_IMAGE = "https://files.catbox.moe/sscl7n.jpg"
 SUPPORT_LINK = Config.SUPPORT_GROUP
 
 
