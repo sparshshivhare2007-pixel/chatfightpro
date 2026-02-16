@@ -31,6 +31,7 @@ app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
 START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
+SUPPORT_LINK = "https://t.me/Newchatfightsupport"
 
 # =========================
 # /start
@@ -80,6 +81,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # =========================
+# Settings Menu
+# =========================
+
+async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+        [
+            InlineKeyboardButton("💬 Support", url=SUPPORT_LINK)
+        ],
+        [
+            InlineKeyboardButton("⬅ Back", callback_data="back_home")
+        ]
+    ]
+
+    await query.edit_message_caption(
+        caption="⚙️ <b>Settings</b>\n\nNeed help? Join our support group.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# =========================
+# Back Button
+# =========================
+
+async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await start(update, context)
+
+# =========================
 # Message Counter
 # =========================
 
@@ -117,10 +150,8 @@ async def send_group_leaderboard(update, context, mode):
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
 
-                if user.username:
-                    name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
-                else:
-                    name = safe_name
+                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+
             except:
                 name = "Unknown"
 
@@ -141,13 +172,15 @@ async def send_group_leaderboard(update, context, mode):
         await update.callback_query.edit_message_text(
             text,
             parse_mode="HTML",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
         )
     else:
         await update.message.reply_text(
             text,
             parse_mode="HTML",
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
         )
 
 async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -170,6 +203,9 @@ app.add_handler(CommandHandler("rankings", rankings))
 app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
+
+app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
+app.add_handler(CallbackQueryHandler(back_home, pattern="^back_home$"))
 
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
