@@ -9,7 +9,8 @@ async def topgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_top_groups(update, context, mode):
-    data, _ = get_top_groups(mode)
+    # FIX: get_top_groups only returns list
+    data = get_top_groups(mode)
     total_messages = get_total_global_messages()
 
     text = "📈 <b>TOP GROUPS</b> 🌍\n\n"
@@ -17,11 +18,14 @@ async def send_top_groups(update, context, mode):
     if not data:
         text += "No data yet."
     else:
-        for i, (group_id, count) in enumerate(data, start=1):
+        for i, item in enumerate(data, start=1):
+            group_id = item[0]
+            count = item[1]
+
             try:
                 chat = await context.bot.get_chat(group_id)
                 safe_name = html.escape(chat.title or "Group")
-            except:
+            except Exception:
                 safe_name = "Unknown Group"
 
             text += f"{i}. 👥 {safe_name} • {count:,}\n"
