@@ -25,6 +25,7 @@ async def send_mytop(update, context, mode):
     rank_position = None
     message_count = 0
 
+    # Find user rank in full leaderboard (not just top 10)
     for i, (uid, count) in enumerate(leaderboard, start=1):
         if uid == user_id:
             rank_position = i
@@ -37,15 +38,13 @@ async def send_mytop(update, context, mode):
     else:
         text += "You are not ranked yet.\n"
 
-    # ===== Buttons with green tick =====
+    # ===== GREEN TICK BUTTONS =====
     keyboard = [
         [
             InlineKeyboardButton(
                 "Overall ✅" if mode == "overall" else "Overall",
                 callback_data="my_overall"
-            )
-        ],
-        [
+            ),
             InlineKeyboardButton(
                 "Today ✅" if mode == "today" else "Today",
                 callback_data="my_today"
@@ -54,7 +53,7 @@ async def send_mytop(update, context, mode):
                 "Week ✅" if mode == "week" else "Week",
                 callback_data="my_week"
             ),
-        ],
+        ]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
