@@ -17,6 +17,7 @@ from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
 from handlers.broadcast import broadcast
 from handlers.logger import log_start, log_bot_status
+from handlers.antispam import check_spam, is_blocked
 
 # =========================
 # Basic Setup
@@ -107,21 +108,42 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await start(update, context)
 
 # =========================
-# Message Counter
+# Anti-Spam Protected Message Counter
 # =========================
 
 async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message and update.message.chat.type in ["group", "supergroup"]:
-        increment_message(
-            update.message.from_user.id,
-            update.message.chat.id
+    if not update.message:
+        return
+
+    if update.message.chat.type not in ["group", "supergroup"]:
+        return
+
+    user_id = update.message.from_user.id
+
+    # If blocked → ignore
+    if is_blocked(user_id):
+        return
+
+    # Check spam
+    if check_spam(user_id):
+        await update.message.reply_text(
+            "🚫 You are temporarily blocked from ChatFight for 10 minutes (spam detected)."
         )
+        return
+
+    # Count message
+    increment_message(user_id, update.message.chat.id)
 
 # =========================
 # Group Leaderboard
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if is_blocked(update.effective_user.id):
+        await update.message.reply_text("🚫 You are temporarily blocked.")
+        return
+
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("Use this command inside a group.")
         return
@@ -133,7 +155,6 @@ async def send_group_leaderboard(update, context, mode):
     data = get_leaderboard(group_id, mode)
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
-
     medals = ["🥇", "🥈", "🥉"]
 
     for i, (user_id, count) in enumerate(data, start=1):
@@ -147,13 +168,11 @@ async def send_group_leaderboard(update, context, mode):
         medal = medals[i - 1] if i <= 3 else f"{i}."
         text += f"{medal} {name} • {count:,}\n"
 
-    keyboard = [
-        [
-            InlineKeyboardButton("Overall", callback_data="rank_overall"),
-            InlineKeyboardButton("Today", callback_data="rank_today"),
-            InlineKeyboardButton("Week", callback_data="rank_week"),
-        ]
-    ]
+    keyboard = [[
+        InlineKeyboardButton("Overall", callback_data="rank_overall"),
+        InlineKeyboardButton("Today", callback_data="rank_today"),
+        InlineKeyboardButton("Week", callback_data="rank_week"),
+    ]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
