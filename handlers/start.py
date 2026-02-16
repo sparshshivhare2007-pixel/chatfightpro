@@ -2,7 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 
-START_IMAGE = ""  
+START_IMAGE = "https://files.catbox.moe/73mktq.jpg"  
 # Yaha apni banner image ka direct link daalo
 
 
