@@ -9,7 +9,8 @@ async def topusers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_global_leaderboard(update, context, mode):
-    data, _ = get_global_leaderboard(mode)
+    # FIX: now only list returned
+    data = get_global_leaderboard(mode)
     total_messages = get_total_global_messages()
 
     text = "📈 <b>GLOBAL LEADERBOARD</b> 🌍\n\n"
@@ -17,7 +18,12 @@ async def send_global_leaderboard(update, context, mode):
     if not data:
         text += "No data yet."
     else:
-        for i, (user_id, count) in enumerate(data, start=1):
+        medals = ["🥇", "🥈", "🥉"]
+
+        for i, item in enumerate(data, start=1):
+            user_id = item[0]
+            count = item[1]
+
             try:
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
@@ -26,14 +32,15 @@ async def send_global_leaderboard(update, context, mode):
                     name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
                 else:
                     name = safe_name
-
-            except:
+            except Exception:
                 name = "Unknown"
 
-            text += f"{i}. {name} • {count:,}\n"
+            medal = medals[i - 1] if i <= 3 else f"{i}."
+            text += f"{medal} {name} • {count:,}\n"
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
+    # ✅ GREEN TICK LOGIC
     keyboard = [
         [
             InlineKeyboardButton(
@@ -42,11 +49,14 @@ async def send_global_leaderboard(update, context, mode):
             )
         ],
         [
-            InlineKeyboardButton("Today", callback_data="g_today"),
-            InlineKeyboardButton("Week", callback_data="g_week"),
-        ],
-        [
-            InlineKeyboardButton("🏳 Language", callback_data="language")
+            InlineKeyboardButton(
+                "Today ✅" if mode == "today" else "Today",
+                callback_data="g_today"
+            ),
+            InlineKeyboardButton(
+                "Week ✅" if mode == "week" else "Week",
+                callback_data="g_week"
+            ),
         ]
     ]
 
