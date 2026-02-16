@@ -3,6 +3,13 @@ import html
 import random
 import asyncio
 
+# ✅ Optional uvloop (auto fast loop if installed)
+try:
+    import uvloop
+    uvloop.install()
+except ImportError:
+    pass
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -20,6 +27,7 @@ from database import (
     get_total_group_messages,
     add_event_points
 )
+
 from handlers.topusers import topusers, global_buttons
 from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
@@ -28,7 +36,7 @@ from handlers.logger import log_start, log_bot_status
 
 
 # =========================
-# Basic Setup
+# BASIC SETUP
 # =========================
 
 logging.basicConfig(
@@ -47,25 +55,7 @@ SUPPORT_LINK = Config.SUPPORT_GROUP
 # EVENT STORAGE
 # =========================
 
-active_events = {}  # group_id: correct_answer
-
-
-# =========================
-# AUTO EVENT LOOP (2 HOURS)
-# =========================
-
-async def auto_event_loop(app):
-    await app.bot.wait_until_ready()
-
-    while True:
-        await asyncio.sleep(7200)  # 2 hours
-
-        for chat in await app.bot.get_my_commands():
-            pass
-
-        # Send event to all groups stored in DB
-        # Simple version: event triggers when bot receives message
-        # (To keep it stable for VPS)
+active_events = {}  # {group_id: correct_answer}
 
 
 # =========================
@@ -107,7 +97,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except:
+        pass
 
     keyboard = [
         [InlineKeyboardButton("💬 Support", url=SUPPORT_LINK)],
@@ -123,7 +116,11 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except:
+        pass
+
     await start(update, context)
 
 
@@ -142,15 +139,14 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     group_id = update.message.chat.id
 
-    # Count normal message
+    # Normal message count
     increment_message(user_id, group_id)
 
-    # Check active event
+    # Event check
     if group_id in active_events:
         try:
             if int(update.message.text.strip()) == active_events[group_id]:
 
-                # Reward
                 add_event_points(user_id, group_id, 20)
 
                 await update.message.reply_text(
@@ -159,7 +155,10 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML"
                 )
 
-                await update.message.reply_reaction("🔥")
+                try:
+                    await update.message.reply_reaction("🔥")
+                except:
+                    pass
 
                 del active_events[group_id]
 
@@ -168,7 +167,7 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# MANUAL EVENT TRIGGER
+# MANUAL EVENT COMMAND
 # =========================
 
 async def event(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -202,14 +201,9 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Use this command inside a group.")
         return
 
-    await send_group_leaderboard(update, context, "overall")
-
-
-async def send_group_leaderboard(update, context, mode):
-
     group_id = update.effective_chat.id
-    data = get_leaderboard(group_id, mode)
-    total_messages = get_total_group_messages(group_id, mode)
+    data = get_leaderboard(group_id, "overall")
+    total_messages = get_total_group_messages(group_id, "overall")
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
     medals = ["🥇", "🥈", "🥉"]
@@ -230,18 +224,9 @@ async def send_group_leaderboard(update, context, mode):
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
-    keyboard = [[
-        InlineKeyboardButton("Overall", callback_data="rank_overall"),
-        InlineKeyboardButton("Today", callback_data="rank_today"),
-        InlineKeyboardButton("Week", callback_data="rank_week"),
-    ]]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
         text=text,
         parse_mode="HTML",
-        reply_markup=reply_markup,
         disable_web_page_preview=True
     )
 
@@ -252,7 +237,7 @@ async def send_group_leaderboard(update, context, mode):
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
-app.add_handler(CommandHandler("event", event))  # manual trigger
+app.add_handler(CommandHandler("event", event))
 app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
@@ -270,7 +255,7 @@ app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
 app.add_handler(CallbackQueryHandler(mytop_buttons, pattern="^my_"))
 app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
-# Counter + Event Check
+# Counter
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
 
@@ -279,4 +264,4 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 # =========================
 
 if __name__ == "__main__":
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
