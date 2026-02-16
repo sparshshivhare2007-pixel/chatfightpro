@@ -13,6 +13,7 @@ from telegram.ext import (
 from config import Config
 from database import increment_message, get_leaderboard
 from handlers.topusers import topusers, global_buttons
+from handlers.mytop import mytop, mytop_buttons
 from handlers.topgroups import topgroups, topgroups_buttons
 
 # =========================
@@ -166,11 +167,13 @@ async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
+app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
 
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
+app.add_handler(CallbackQueryHandler(mytop_buttons, pattern="^my_"))
 app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
