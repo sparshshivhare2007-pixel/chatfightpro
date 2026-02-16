@@ -13,6 +13,16 @@ class Config:
     UPDATES_CHANNEL = os.getenv("UPDATES_CHANNEL")
 
     # =========================
+    # Admin
+    # =========================
+    ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+
+    # =========================
+    # Support
+    # =========================
+    SUPPORT_GROUP = os.getenv("SUPPORT_GROUP")
+
+    # =========================
     # MongoDB
     # =========================
     MONGO_URI = os.getenv("MONGO_URI")
@@ -27,3 +37,6 @@ class Config:
 
         if not Config.MONGO_URI:
             raise ValueError("MONGO_URI missing in .env")
+
+        if not Config.ADMIN_ID:
+            raise ValueError("ADMIN_ID missing in .env")
