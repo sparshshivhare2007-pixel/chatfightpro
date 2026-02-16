@@ -1,7 +1,7 @@
 import html
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from database import get_leaderboard
+from database import get_leaderboard, get_total_group_messages
 
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -16,10 +16,13 @@ async def send_leaderboard(update, context, mode):
     group_id = update.effective_chat.id
     data = get_leaderboard(group_id, mode)
 
+    # ✅ Get total messages of group
+    total_messages = get_total_group_messages(group_id, mode)
+
     text = "📈 <b>LEADERBOARD</b>\n\n"
 
     if not data:
-        text += "No data yet."
+        text += "No data yet.\n"
     else:
         medals = ["🥇", "🥈", "🥉"]
 
@@ -28,7 +31,7 @@ async def send_leaderboard(update, context, mode):
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
 
-                # ✅ Clickable WITHOUT preview
+                # Clickable without preview
                 name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
 
             except Exception:
@@ -37,27 +40,27 @@ async def send_leaderboard(update, context, mode):
             medal = medals[i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {name} • {count:,}\n"
 
+    # ✅ Add total messages at bottom
+    text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
+
     # ✅ Green Tick Logic
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "Overall ✅" if mode == "overall" else "Overall",
-                callback_data="rank_overall"
-            ),
-            InlineKeyboardButton(
-                "Today ✅" if mode == "today" else "Today",
-                callback_data="rank_today"
-            ),
-            InlineKeyboardButton(
-                "Week ✅" if mode == "week" else "Week",
-                callback_data="rank_week"
-            ),
-        ]
-    ]
+    keyboard = [[
+        InlineKeyboardButton(
+            "Overall ✅" if mode == "overall" else "Overall",
+            callback_data="rank_overall"
+        ),
+        InlineKeyboardButton(
+            "Today ✅" if mode == "today" else "Today",
+            callback_data="rank_today"
+        ),
+        InlineKeyboardButton(
+            "Week ✅" if mode == "week" else "Week",
+            callback_data="rank_week"
+        ),
+    ]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Always disable preview
     if update.callback_query:
         await update.callback_query.edit_message_text(
             text=text,
