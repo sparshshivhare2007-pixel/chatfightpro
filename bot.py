@@ -1,4 +1,5 @@
 import logging
+import html
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -43,10 +44,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        "🤖 Welcome to ChatFight Bot!\n\n"
+        "🤖 <b>Welcome to ChatFight Bot!</b>\n\n"
         "I count group messages and create leaderboards.\n"
         "Use /rankings inside a group.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 # =========================
@@ -89,17 +92,17 @@ async def send_leaderboard(update, context, mode):
         for i, (user_id, count) in enumerate(data, start=1):
             try:
                 user = await context.bot.get_chat(user_id)
+                safe_name = html.escape(user.full_name or "User")
 
                 if user.username:
-                    name = f"<a href='https://t.me/{user.username}'>{user.first_name}</a>"
+                    name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
                 else:
-                    name = user.first_name
+                    name = safe_name
 
             except:
                 name = "Unknown"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
-
             text += f"{medal} {name} • {count}\n"
 
     keyboard = [
@@ -116,13 +119,15 @@ async def send_leaderboard(update, context, mode):
         await update.callback_query.edit_message_text(
             text,
             reply_markup=reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
     else:
         await update.message.reply_text(
             text,
             reply_markup=reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
 
 # =========================
