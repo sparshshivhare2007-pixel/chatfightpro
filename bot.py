@@ -12,6 +12,7 @@ from telegram.ext import (
 
 from config import Config
 from database import increment_message, get_leaderboard
+from handlers.topusers import topusers, global_buttons  # ← Global leaderboard handler
 
 # =========================
 # Basic Setup
@@ -26,10 +27,9 @@ Config.validate()
 
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 
-# Optional updates channel
 app.bot_data["updates_channel"] = getattr(Config, "UPDATES_CHANNEL", None)
 
-# Your Banner Image
+# Banner Image
 START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
 
 # =========================
@@ -72,7 +72,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except Exception:
-        # fallback if image fails
         await update.message.reply_text(
             text,
             parse_mode="HTML",
@@ -92,7 +91,7 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # =========================
-# Rankings Command
+# Group Rankings
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -101,10 +100,6 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await send_leaderboard(update, context, "overall")
-
-# =========================
-# Leaderboard Sender
-# =========================
 
 async def send_leaderboard(update, context, mode):
     group_id = update.effective_chat.id
@@ -131,7 +126,7 @@ async def send_leaderboard(update, context, mode):
                 name = "Unknown"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
-            text += f"{medal} {name} • {count}\n"
+            text += f"{medal} {name} • {count:,}\n"
 
     keyboard = [
         [
@@ -158,10 +153,6 @@ async def send_leaderboard(update, context, mode):
             disable_web_page_preview=True
         )
 
-# =========================
-# Button Handler
-# =========================
-
 async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -179,7 +170,11 @@ async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
+app.add_handler(CommandHandler("topusers", topusers))
+
 app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
+app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
+
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
 
 # =========================
