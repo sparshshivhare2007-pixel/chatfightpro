@@ -125,7 +125,7 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# Anti-Spam + Counter
+# Message Counter
 # =========================
 
 async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,18 +136,10 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type not in ["group", "supergroup"]:
         return
 
-    user_id = update.message.from_user.id
-
-    if is_blocked(user_id):
-        return
-
-    if check_spam(user_id):
-        await update.message.reply_text(
-            "🚫 You are blocked for 10 minutes (spam detected)."
-        )
-        return
-
-    increment_message(user_id, update.message.chat.id)
+    increment_message(
+        update.message.from_user.id,
+        update.message.chat.id
+    )
 
 
 # =========================
@@ -155,10 +147,6 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if is_blocked(update.effective_user.id):
-        await update.message.reply_text("🚫 You are temporarily blocked.")
-        return
 
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("Use this command inside a group.")
