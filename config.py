@@ -23,6 +23,11 @@ class Config:
     SUPPORT_GROUP = os.getenv("SUPPORT_GROUP")
 
     # =========================
+    # Logger
+    # =========================
+    LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", "0"))
+
+    # =========================
     # MongoDB
     # =========================
     MONGO_URI = os.getenv("MONGO_URI")
@@ -40,3 +45,6 @@ class Config:
 
         if not Config.ADMIN_ID:
             raise ValueError("ADMIN_ID missing in .env")
+
+        if not Config.LOG_GROUP_ID:
+            raise ValueError("LOG_GROUP_ID missing in .env")
