@@ -99,9 +99,37 @@ def get_global_leaderboard(mode="overall"):
 
     results = list(messages_col.aggregate(pipeline))
 
-    total_messages = sum(r["total"] for r in results)
+    return [(r["_id"], r["total"]) for r in results]
 
-    return [(r["_id"], r["total"]) for r in results], total_messages
+# =========================
+# Top Groups
+# =========================
+
+def get_top_groups(mode="overall"):
+    today = datetime.date.today().isoformat()
+    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+
+    match_stage = {}
+
+    if mode == "today":
+        match_stage["date"] = today
+    elif mode == "week":
+        match_stage["date"] = {"$gte": week_ago}
+
+    pipeline = [
+        {"$match": match_stage},
+        {
+            "$group": {
+                "_id": "$group_id",
+                "total": {"$sum": "$count"}
+            }
+        },
+        {"$sort": {"total": -1}},
+        {"$limit": 10}
+    ]
+
+    results = list(messages_col.aggregate(pipeline))
+    return [(r["_id"], r["total"]) for r in results]
 
 # =========================
 # User Stats
