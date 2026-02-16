@@ -1,10 +1,14 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+START_IMAGE = "https://files.catbox.moe/73mktq.jpg"
 
-START_IMAGE = "https://files.catbox.moe/73mktq.jpg"  
-# Yaha apni banner image ka direct link daalo
+SUPPORT_GROUP = "https://t.me/Newchatfightsupport"
 
+
+# =========================
+# START COMMAND
+# =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     updates_channel = context.bot_data.get("updates_channel")
@@ -35,7 +39,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "and to compliance with the <a href='https://example.com/rules'>Rules</a>."
     )
 
-    # Send photo with caption (like ChatFight)
     await update.message.reply_photo(
         photo=START_IMAGE,
         caption=text,
@@ -43,3 +46,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard),
         disable_web_page_preview=True
     )
+
+
+# =========================
+# SETTINGS CALLBACK
+# =========================
+
+async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "💬 Support",
+                url=SUPPORT_GROUP
+            )
+        ],
+        [
+            InlineKeyboardButton("⬅ Back", callback_data="back_home")
+        ]
+    ]
+
+    await query.edit_message_caption(
+        caption="⚙️ <b>Settings</b>\n\nNeed help? Join our support group.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# =========================
+# BACK BUTTON
+# =========================
+
+async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await start(update, context)
