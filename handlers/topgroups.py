@@ -10,7 +10,7 @@ async def topgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_top_groups(update, context, mode):
     data = get_top_groups(mode)
-    total_messages = get_total_global_messages(mode)  # ✅ MODE BASED
+    total_messages = get_total_global_messages()  # ✅ MODE BASED
 
     text = "📈 <b>TOP GROUPS</b> 🌍\n\n"
 
