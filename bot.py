@@ -37,17 +37,12 @@ logging.basicConfig(
 )
 
 Config.validate()
-
 app = ApplicationBuilder().token(Config.BOT_TOKEN).build()
 
 START_IMAGE = "https://files.catbox.moe/sscl7n.jpg"
 SUPPORT_LINK = Config.SUPPORT_GROUP
 
-# =========================
-# EVENT STORAGE
-# =========================
-
-active_events = {}  # {group_id: correct_answer}
+active_events = {}
 
 
 # =========================
@@ -69,15 +64,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    text = (
-        "🤖 <b>Welcome!</b>\n\n"
-        "This bot counts group messages, creates rankings "
-        "and rewards active users."
-    )
-
     await update.message.reply_photo(
         photo=START_IMAGE,
-        caption=text,
+        caption="🤖 <b>Welcome!</b>\n\nBot counts messages & shows rankings.",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -100,7 +89,7 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await query.edit_message_caption(
-        caption="⚙️ <b>Settings</b>\n\nNeed help? Join our support group.",
+        caption="⚙️ <b>Settings</b>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -112,12 +101,11 @@ async def back_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
     except:
         pass
-
     await start(update, context)
 
 
 # =========================
-# MESSAGE COUNTER + EVENT CHECK
+# MESSAGE COUNTER
 # =========================
 
 async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -128,74 +116,30 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type not in ["group", "supergroup"]:
         return
 
-    user_id = update.message.from_user.id
-    group_id = update.message.chat.id
-
-    # Normal message count
-    increment_message(user_id, group_id)
-
-    # Event check
-    if group_id in active_events:
-        try:
-            if int(update.message.text.strip()) == active_events[group_id]:
-
-                add_event_points(user_id, group_id, 20)
-
-                await update.message.reply_text(
-                    f"🎉 {update.message.from_user.mention_html()} won the event!\n"
-                    f"🏆 +20 Event Points!",
-                    parse_mode="HTML"
-                )
-
-                try:
-                    await update.message.reply_reaction("🔥")
-                except:
-                    pass
-
-                del active_events[group_id]
-
-        except:
-            pass
-
-
-# =========================
-# MANUAL EVENT COMMAND
-# =========================
-
-async def event(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if update.effective_chat.type not in ["group", "supergroup"]:
-        return
-
-    group_id = update.effective_chat.id
-
-    a = random.randint(5, 20)
-    b = random.randint(5, 20)
-
-    answer = a + b
-    active_events[group_id] = answer
-
-    await update.message.reply_text(
-        f"🎯 <b>ChatFight Event!</b>\n\n"
-        f"⚡ Solve Fast & Win 20 Points!\n\n"
-        f"🧮 {a} + {b} = ?",
-        parse_mode="HTML"
+    increment_message(
+        update.message.from_user.id,
+        update.message.chat.id
     )
 
 
 # =========================
-# GROUP LEADERBOARD
+# LEADERBOARD SYSTEM
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_chat.type not in ["group", "supergroup"]:
-        await update.message.reply_text("Use this command inside a group.")
+        await update.message.reply_text("Use inside group.")
         return
 
+    await send_leaderboard(update, context, "overall")
+
+
+async def send_leaderboard(update, context, mode):
+
     group_id = update.effective_chat.id
-    data = get_leaderboard(group_id, "overall")
-    total_messages = get_total_group_messages(group_id, "overall")
+    data = get_leaderboard(group_id, mode)
+    total_messages = get_total_group_messages(group_id, mode)
 
     text = "📈 <b>LEADERBOARD</b>\n\n"
     medals = ["🥇", "🥈", "🥉"]
@@ -206,8 +150,7 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, (user_id, count) in enumerate(data, start=1):
             try:
                 user = await context.bot.get_chat(user_id)
-                safe_name = html.escape(user.full_name or "User")
-                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+                name = f"<a href='tg://user?id={user_id}'>{html.escape(user.full_name)}</a>"
             except:
                 name = "Unknown"
 
@@ -216,11 +159,59 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
-    await update.message.reply_text(
-        text=text,
-        parse_mode="HTML",
-        disable_web_page_preview=True
-    )
+    keyboard = [[
+        InlineKeyboardButton(
+            "Overall ✅" if mode == "overall" else "Overall",
+            callback_data="rank_overall"
+        ),
+        InlineKeyboardButton(
+            "Today ✅" if mode == "today" else "Today",
+            callback_data="rank_today"
+        ),
+        InlineKeyboardButton(
+            "Week ✅" if mode == "week" else "Week",
+            callback_data="rank_week"
+        ),
+    ]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if update.callback_query:
+        try:
+            await update.callback_query.edit_message_text(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
+            )
+        except:
+            await update.callback_query.message.reply_text(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=reply_markup
+            )
+    else:
+        await update.message.reply_text(
+            text=text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
+        )
+
+
+async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except:
+        pass
+
+    if query.data == "rank_today":
+        await send_leaderboard(update, context, "today")
+    elif query.data == "rank_week":
+        await send_leaderboard(update, context, "week")
+    else:
+        await send_leaderboard(update, context, "overall")
 
 
 # =========================
@@ -229,27 +220,21 @@ async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("rankings", rankings))
-app.add_handler(CommandHandler("event", event))
+app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(CommandHandler("mytop", mytop))
 app.add_handler(CommandHandler("topusers", topusers))
 app.add_handler(CommandHandler("topgroups", topgroups))
-app.add_handler(CommandHandler("broadcast", broadcast))
-
-# Logger
-app.add_handler(CommandHandler("start", log_start), group=1)
-app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, log_bot_status))
-app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, log_bot_status))
 
 # Callbacks
 app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
 app.add_handler(CallbackQueryHandler(back_home, pattern="^back_home$"))
+app.add_handler(CallbackQueryHandler(ranking_buttons, pattern="^rank_"))
 app.add_handler(CallbackQueryHandler(global_buttons, pattern="^g_"))
 app.add_handler(CallbackQueryHandler(mytop_buttons, pattern="^my_"))
 app.add_handler(CallbackQueryHandler(topgroups_buttons, pattern="^tg_"))
 
 # Counter
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
-
 
 # =========================
 # RUN
