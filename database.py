@@ -154,6 +154,28 @@ def get_user_groups_stats(user_id: int, mode="overall"):
     return [(r["_id"], r["total"]) for r in results]
 
 # =========================
+# TOP GROUPS (GLOBAL)
+# =========================
+
+def get_top_groups(mode="overall"):
+    match_stage = _build_date_filter(mode)
+
+    pipeline = [
+        {"$match": match_stage},
+        {
+            "$group": {
+                "_id": "$group_id",
+                "total": {"$sum": "$count"}
+            }
+        },
+        {"$sort": {"total": -1}},
+        {"$limit": 10}
+    ]
+
+    results = list(messages_col.aggregate(pipeline))
+    return [(r["_id"], r["total"]) for r in results]
+
+# =========================
 # GLOBAL LEADERBOARD
 # =========================
 
