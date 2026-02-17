@@ -10,7 +10,7 @@ async def topusers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_global_leaderboard(update, context, mode):
     data = get_global_leaderboard(mode)
-    total_messages = get_total_global_messages()  # ✅ MODE BASED
+    total_messages = get_total_global_messages(mode)  # ✅ MODE BASED
 
     text = "📈 <b>GLOBAL LEADERBOARD</b> 🌍\n\n"
 
