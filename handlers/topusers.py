@@ -9,9 +9,8 @@ async def topusers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_global_leaderboard(update, context, mode):
-    # FIX: now only list returned
     data = get_global_leaderboard(mode)
-    total_messages = get_total_global_messages()
+    total_messages = get_total_global_messages(mode)  # ✅ MODE BASED
 
     text = "📈 <b>GLOBAL LEADERBOARD</b> 🌍\n\n"
 
@@ -20,19 +19,12 @@ async def send_global_leaderboard(update, context, mode):
     else:
         medals = ["🥇", "🥈", "🥉"]
 
-        for i, item in enumerate(data, start=1):
-            user_id = item[0]
-            count = item[1]
-
+        for i, (user_id, count) in enumerate(data, start=1):
             try:
                 user = await context.bot.get_chat(user_id)
                 safe_name = html.escape(user.full_name or "User")
-
-                if user.username:
-                    name = f"<a href='https://t.me/{user.username}'>{safe_name}</a>"
-                else:
-                    name = safe_name
-            except Exception:
+                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
+            except:
                 name = "Unknown"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
@@ -40,7 +32,6 @@ async def send_global_leaderboard(update, context, mode):
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
-    # ✅ GREEN TICK LOGIC
     keyboard = [
         [
             InlineKeyboardButton(
