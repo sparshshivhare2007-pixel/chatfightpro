@@ -10,7 +10,7 @@ async def topgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_top_groups(update, context, mode):
     data = get_top_groups(mode)
-    total_messages = get_total_global_messages()
+    total_messages = get_total_global_messages(mode)  # ✅ MODE BASED
 
     text = "📈 <b>TOP GROUPS</b> 🌍\n\n"
 
@@ -19,15 +19,11 @@ async def send_top_groups(update, context, mode):
     else:
         medals = ["🥇", "🥈", "🥉"]
 
-        for i, item in enumerate(data, start=1):
-            group_id = item[0]
-            count = item[1]
-
+        for i, (group_id, count) in enumerate(data, start=1):
             try:
                 chat = await context.bot.get_chat(group_id)
                 safe_name = html.escape(chat.title or "Group")
-            except Exception:
-                # fallback: show group_id instead of Unknown
+            except:
                 safe_name = f"Group {group_id}"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
@@ -35,7 +31,6 @@ async def send_top_groups(update, context, mode):
 
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
-    # ✅ GREEN TICK LOGIC
     keyboard = [
         [
             InlineKeyboardButton(
