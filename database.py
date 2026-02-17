@@ -35,11 +35,10 @@ events_col.create_index(
 # =========================
 
 def _get_today_5am_reset():
-    now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)  # IST
+    now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
 
-    # If before 5 AM → count as previous day
     if now.hour < 5:
-        now = now - datetime.timedelta(days=1)
+        now -= datetime.timedelta(days=1)
 
     return now.date().isoformat()
 
@@ -49,10 +48,9 @@ def _get_today_5am_reset():
 
 def _build_date_filter(mode):
     today = _get_today_5am_reset()
-    week_ago = (
-        datetime.datetime.strptime(today, "%Y-%m-%d").date()
-        - datetime.timedelta(days=7)
-    ).isoformat()
+
+    today_date = datetime.datetime.strptime(today, "%Y-%m-%d").date()
+    week_ago = (today_date - datetime.timedelta(days=7)).isoformat()
 
     if mode == "today":
         return {"date": today}
@@ -65,7 +63,7 @@ def _build_date_filter(mode):
 # =========================
 
 def increment_message(user_id: int, group_id: int):
-    today = _get_today_5am_reset()  # 🔥 IMPORTANT
+    today = _get_today_5am_reset()
 
     messages_col.update_one(
         {
@@ -219,14 +217,14 @@ def get_total_group_messages(group_id: int, mode="overall"):
     return result[0]["total"] if result else 0
 
 # =========================
-# GLOBAL STATS
+# GLOBAL TOTAL MESSAGES (MODE BASED)
 # =========================
 
-def get_global_user_count():
-    return len(messages_col.distinct("user_id"))
+def get_total_global_messages(mode="overall"):
+    match_stage = _build_date_filter(mode)
 
-def get_total_global_messages():
     pipeline = [
+        {"$match": match_stage},
         {
             "$group": {
                 "_id": None,
@@ -237,3 +235,10 @@ def get_total_global_messages():
 
     result = list(messages_col.aggregate(pipeline))
     return result[0]["total"] if result else 0
+
+# =========================
+# GLOBAL USER COUNT
+# =========================
+
+def get_global_user_count():
+    return len(messages_col.distinct("user_id"))
