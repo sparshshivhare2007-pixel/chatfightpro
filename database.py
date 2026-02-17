@@ -12,7 +12,6 @@ db = client["chatfight"]
 messages_col = db["messages"]
 events_col = db["events"]
 
-
 # =========================
 # Indexes
 # =========================
@@ -31,14 +30,29 @@ events_col.create_index(
     unique=True
 )
 
+# =========================
+# 5 AM RESET LOGIC (IST)
+# =========================
+
+def _get_today_5am_reset():
+    now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)  # IST
+
+    # If before 5 AM → count as previous day
+    if now.hour < 5:
+        now = now - datetime.timedelta(days=1)
+
+    return now.date().isoformat()
 
 # =========================
 # Date Filter Builder
 # =========================
 
 def _build_date_filter(mode):
-    today = datetime.date.today().isoformat()
-    week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    today = _get_today_5am_reset()
+    week_ago = (
+        datetime.datetime.strptime(today, "%Y-%m-%d").date()
+        - datetime.timedelta(days=7)
+    ).isoformat()
 
     if mode == "today":
         return {"date": today}
@@ -46,13 +60,12 @@ def _build_date_filter(mode):
         return {"date": {"$gte": week_ago}}
     return {}
 
-
 # =========================
-# Increment Normal Message
+# Increment Message
 # =========================
 
 def increment_message(user_id: int, group_id: int):
-    today = datetime.date.today().isoformat()
+    today = _get_today_5am_reset()  # 🔥 IMPORTANT
 
     messages_col.update_one(
         {
@@ -64,11 +77,8 @@ def increment_message(user_id: int, group_id: int):
         upsert=True
     )
 
-
-# =========================
 # =========================
 # EVENT SYSTEM
-# =========================
 # =========================
 
 def add_event_points(user_id: int, group_id: int, points: int):
@@ -80,7 +90,6 @@ def add_event_points(user_id: int, group_id: int, points: int):
         {"$inc": {"points": points}},
         upsert=True
     )
-
 
 def get_event_leaderboard(group_id: int):
     pipeline = [
@@ -97,19 +106,6 @@ def get_event_leaderboard(group_id: int):
 
     results = list(events_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
-
-
-def get_user_event_points(user_id: int, group_id: int):
-    result = events_col.find_one({
-        "user_id": user_id,
-        "group_id": group_id
-    })
-
-    if not result:
-        return 0
-
-    return result.get("points", 0)
-
 
 # =========================
 # GROUP LEADERBOARD
@@ -134,9 +130,8 @@ def get_leaderboard(group_id: int, mode="overall"):
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
 
-
 # =========================
-# MY TOP GROUPS (IMPORTANT FIX)
+# MY TOP GROUPS
 # =========================
 
 def get_user_groups_stats(user_id: int, mode="overall"):
@@ -157,7 +152,6 @@ def get_user_groups_stats(user_id: int, mode="overall"):
 
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
-
 
 # =========================
 # GLOBAL LEADERBOARD
@@ -181,30 +175,6 @@ def get_global_leaderboard(mode="overall"):
     results = list(messages_col.aggregate(pipeline))
     return [(r["_id"], r["total"]) for r in results]
 
-
-# =========================
-# TOP GROUPS
-# =========================
-
-def get_top_groups(mode="overall"):
-    match_stage = _build_date_filter(mode)
-
-    pipeline = [
-        {"$match": match_stage},
-        {
-            "$group": {
-                "_id": "$group_id",
-                "total": {"$sum": "$count"}
-            }
-        },
-        {"$sort": {"total": -1}},
-        {"$limit": 10}
-    ]
-
-    results = list(messages_col.aggregate(pipeline))
-    return [(r["_id"], r["total"]) for r in results]
-
-
 # =========================
 # TOTAL GROUP MESSAGES
 # =========================
@@ -226,14 +196,12 @@ def get_total_group_messages(group_id: int, mode="overall"):
     result = list(messages_col.aggregate(pipeline))
     return result[0]["total"] if result else 0
 
-
 # =========================
 # GLOBAL STATS
 # =========================
 
 def get_global_user_count():
     return len(messages_col.distinct("user_id"))
-
 
 def get_total_global_messages():
     pipeline = [
