@@ -1,7 +1,7 @@
 import html
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from database import get_user_groups_stats
+from database import get_user_groups_stats, get_total_group_messages
 
 
 async def mytop(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -10,7 +10,6 @@ async def mytop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_mytop(update, context, mode):
     user_id = update.effective_user.id
-
     data = get_user_groups_stats(user_id, mode)
 
     text = "📈 <b>TOP GROUPS</b> | 🌍\n\n"
