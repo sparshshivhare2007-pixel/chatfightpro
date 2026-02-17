@@ -25,7 +25,7 @@ class Config:
     # =========================
     # Logger
     # =========================
-    LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", "0"))
+    LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", "-1003843335098"))
 
     # =========================
     # MongoDB
