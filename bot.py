@@ -127,9 +127,8 @@ async def count_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 
 async def rankings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     if update.effective_chat.type not in ["group", "supergroup"]:
-        await update.message.reply_text("Use inside group.")
+        await update.message.reply_text("Use this in a group.")
         return
 
     await send_leaderboard(update, context, "overall")
@@ -150,13 +149,15 @@ async def send_leaderboard(update, context, mode):
         for i, (user_id, count) in enumerate(data, start=1):
             try:
                 user = await context.bot.get_chat(user_id)
-                name = f"<a href='tg://user?id={user_id}'>{html.escape(user.full_name)}</a>"
+                safe_name = html.escape(user.full_name or "User")
+                name = f"<a href='tg://user?id={user_id}'>{safe_name}</a>"
             except:
                 name = "Unknown"
 
             medal = medals[i - 1] if i <= 3 else f"{i}."
             text += f"{medal} {name} • {count:,}\n"
 
+    # ✅ Dynamic total based on mode
     text += f"\n📨 <b>Total messages:</b> {total_messages:,}"
 
     keyboard = [[
@@ -177,19 +178,12 @@ async def send_leaderboard(update, context, mode):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(
-                text=text,
-                parse_mode="HTML",
-                reply_markup=reply_markup,
-                disable_web_page_preview=True
-            )
-        except:
-            await update.callback_query.message.reply_text(
-                text=text,
-                parse_mode="HTML",
-                reply_markup=reply_markup
-            )
+        await update.callback_query.edit_message_text(
+            text=text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
+        )
     else:
         await update.message.reply_text(
             text=text,
@@ -201,10 +195,7 @@ async def send_leaderboard(update, context, mode):
 
 async def ranking_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    try:
-        await query.answer()
-    except:
-        pass
+    await query.answer()
 
     if query.data == "rank_today":
         await send_leaderboard(update, context, "today")
